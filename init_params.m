@@ -8,10 +8,10 @@ turndown  = 10;      % burner turndown ratio (1:10)
 Qmin      = Qmax/turndown;   % W, minimum burner power when burning (2.4 kW)
 
 %% ===== heating circuit (isitici.slx, Controller.slx) =====
-% plant
+% plant (Tamb = room temperature the radiators lose heat to)
 C          = 20000;  % J/K, thermal capacity of the heating water
 UA         = 100;    % W/K, heat loss coefficient
-Tamb       = 20;     % degC, ambient temperature
+Tamb       = 20;     % degC, room temperature
 T_amb      = 20;     % degC, same value (heating plant block uses this name)
 
 % setpoint scenario (Step block in isitici.slx)
@@ -29,6 +29,14 @@ Tsch       = 0.1;    % s, controller sample time
 % burner shutoff hysteresis (low load)
 Hoffch     = 3;      % K, burner off when T >= setpoint + Hoffch
 Honch      = 3;      % K, burner on again when T <= setpoint - Honch
+
+% heating curve (outdoor temperature compensation)
+hcon       = 0;      % 1 = setpoint from heating curve, 0 = fixed setpoint (step block)
+Toutdoor   = 5;      % degC, outdoor temperature
+hcx        = [-15 -5 5 15 20];   % degC, outdoor temperature breakpoints
+hcy        = [75 62 49 36 30];   % degC, flow temperature setpoints
+Tflowmin   = 30;     % degC, lower limit of the flow temperature setpoint
+Tflowmax   = 75;     % degC, upper limit of the flow temperature setpoint
 
 %% ===== domestic hot water (dhwplant.slx) =====
 % plant

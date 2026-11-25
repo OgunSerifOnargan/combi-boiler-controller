@@ -6,7 +6,7 @@ Common assumptions: maximum burner power Qmax = 24 kW, turndown 1:10 (minimum bu
 
 ## Heating circuit (CH)
 
-Lumped model: heating water thermal capacity C = 20 kJ/K, heat loss coefficient UA = 100 W/K.
+Lumped model: heating water thermal capacity C = 20 kJ/K, heat loss coefficient UA = 100 W/K, room temperature 20 °C.
 
 | ID | Requirement | Test |
 |---|---|---|
@@ -15,9 +15,20 @@ Lumped model: heating water thermal capacity C = 20 kJ/K, heat loss coefficient 
 | REQ-CH-003 | Steady-state error is less than 0.1 K. | test_ch_basic.m |
 | REQ-CH-004 | Heater power stays within 0 ... 24 kW. | test_ch_basic.m |
 | REQ-CH-005 | After a setpoint step from 50 °C to 65 °C the flow temperature reaches 64.9 °C within 120 s, overshoot less than 0.5 K, heater power at most 24 kW. | test_ch_step.m |
-| REQ-CH-006 | At low load (load below Qmin, e.g. ambient 45 °C) the temperature stays within +/-3.5 K of the setpoint after 600 s. The burner is switched off at setpoint + 3 K and on again at setpoint - 3 K. | test_ch_low.m |
+| REQ-CH-006 | At low load (load below Qmin, e.g. room 45 °C) the temperature stays within +/-3.5 K of the setpoint after 600 s. The burner is switched off at setpoint + 3 K and on again at setpoint - 3 K. | test_ch_low.m |
 | REQ-CH-007 | Burner power is either 0 W or at least Qmin. | test_ch_low.m |
 | REQ-CH-008 | At low load the burner starts at most 25 times per hour. | test_ch_low.m |
+
+## Heating curve (HC)
+
+Outdoor temperature compensation: the flow temperature setpoint is looked up from the outdoor temperature (table with linear interpolation, end values held outside the table) and limited to Tflowmin ... Tflowmax. A switch selects between the curve and the fixed setpoint.
+
+| ID | Requirement | Test |
+|---|---|---|
+| REQ-HC-001 | With the heating curve enabled, the flow temperature setpoint follows the curve (linear interpolation between breakpoints): the steady-state flow temperature equals the curve value within 0.1 K (outdoor -15, -5, 0, +5 °C). | test_hc.m |
+| REQ-HC-002 | Outside the table range the end value is held (no extrapolation): outdoor -25 °C gives the value at the lowest breakpoint. | test_hc.m |
+| REQ-HC-003 | The curve is well-formed: breakpoints strictly increasing, flow temperature non-increasing with rising outdoor temperature. | test_hc.m |
+| REQ-HC-004 | The flow temperature setpoint is limited to Tflowmin ... Tflowmax regardless of the curve values. | test_hc.m |
 
 ## Domestic hot water (DHW)
 
