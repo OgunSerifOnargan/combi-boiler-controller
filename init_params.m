@@ -8,6 +8,7 @@ turndown  = 5;       % burner turndown ratio (1:5)
 Qmin      = Qmax/turndown;   % W, minimum burner power when burning (4.8 kW)
 
 %% ===== heating circuit (isitici.slx, Controller.slx) =====
+% plant
 C          = 20000;  % J/K, thermal capacity of the heating water
 UA         = 100;    % W/K, heat loss coefficient
 Tamb       = 20;     % degC, ambient temperature
@@ -18,6 +19,12 @@ tset       = 60;     % degC, nominal setpoint
 tsetinit   = 60;     % degC, setpoint before the step
 tsetfinal  = 60;     % degC, setpoint after the step
 tstep      = 200;    % s, time of the step
+
+% controller (PID block in Controller.slx)
+Kpch       = 1000;   % W/K, proportional gain
+Kich       = 5;      % W/(K s), integral gain
+Kbch       = 0.005;  % back-calculation anti-windup coefficient
+Tsch       = 0.1;    % s, controller sample time
 
 %% ===== domestic hot water (dhwplant.slx) =====
 % plant

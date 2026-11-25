@@ -1,14 +1,11 @@
 % test_ch_basic.m
 % MIL test: heating loop, REQ-CH-001 ... REQ-CH-004 (no setpoint step)
 
-% --- parameters ---
-C     = 20000;   % J/K
-UA    = 100;     % W/K
-Tamb  = 20;      % degC
-T_amb = 20;      % degC
-tset  = 60;      % degC
+% --- parameters (all from init_params.m) ---
+init_params;
 
 % --- scenario: constant setpoint, no step ---
+tset      = 60;
 tsetinit  = 60;
 tsetfinal = 60;
 tstep     = 200;
