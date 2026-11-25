@@ -4,8 +4,8 @@
 
 %% ===== common =====
 Qmax      = 24000;   % W, maximum burner power (24 kW)
-turndown  = 5;       % burner turndown ratio (1:5)
-Qmin      = Qmax/turndown;   % W, minimum burner power when burning (4.8 kW)
+turndown  = 10;      % burner turndown ratio (1:10)
+Qmin      = Qmax/turndown;   % W, minimum burner power when burning (2.4 kW)
 
 %% ===== heating circuit (isitici.slx, Controller.slx) =====
 % plant
@@ -23,8 +23,12 @@ tstep      = 200;    % s, time of the step
 % controller (PID block in Controller.slx)
 Kpch       = 1000;   % W/K, proportional gain
 Kich       = 5;      % W/(K s), integral gain
-Kbch       = 0.005;  % back-calculation anti-windup coefficient
+Ktch       = 0.005;  % tracking (anti-windup) coefficient
 Tsch       = 0.1;    % s, controller sample time
+
+% burner shutoff hysteresis (low load)
+Hoffch     = 3;      % K, burner off when T >= setpoint + Hoffch
+Honch      = 3;      % K, burner on again when T <= setpoint - Honch
 
 %% ===== domestic hot water (dhwplant.slx) =====
 % plant

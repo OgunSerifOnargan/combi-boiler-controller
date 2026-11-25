@@ -1,74 +1,78 @@
-# Combi boiler controller (Simulink)
+# Combi boiler controller
 
-Model-based design of a combi boiler control software, built step by step with requirements, automated tests and a documented design.
+A Simulink model of the control software of a combi boiler (heating circuit and domestic hot water), built step by step as a learning and portfolio project. The scope is the control software only (controllers, burner modulation, requirements, tests); no hardware design.
 
-This is a simulation project. It is not a certified safety product and the plant parameters are typical values, not measurements.
+Everything is built by hand in Simulink and verified by automated model-in-the-loop (MIL) tests with traceable requirement IDs (see `requirements/REQUIREMENTS.md`).
 
-## Current status
+## Repository content
 
-| Part | State |
-| --- | --- |
-| Central heating loop: PI control with back-calculation anti-windup | Done |
-| Discrete-time controller, 0.1 s sample time | Done |
-| Plant and controller split, controller as referenced model | Done |
-| MIL tests for REQ-CH-001 to REQ-CH-004 | Passing |
-| Setpoint step test (REQ-CH-005) | Passing |
-| Domestic hot water mode, pump logic, burner sequence (Stateflow), protection layer | Planned |
-| C++ implementation with back-to-back verification, CI | Planned |
+| File | Purpose |
+|---|---|
+| `init_params.m` | Single parameter file for all models and tests |
+| `isitici.slx` | Heating circuit: step source, controller reference model, thermal plant |
+| `Controller.slx` | Heating controller (model reference) |
+| `dhwplant.slx` | Domestic hot water: flow-through plant and controller |
+| `test_ch_basic.m` | MIL test, heating, REQ-CH-001 ... 004 |
+| `test_ch_step.m` | MIL test, heating setpoint step, REQ-CH-005 |
+| `test_ch_low.m` | MIL test, heating at low load, REQ-CH-006 ... 008 |
+| `testdhw.m` | MIL test, domestic hot water, REQ-DHW-001 ... 007 |
+| `requirements/REQUIREMENTS.md` | Requirements with IDs |
 
-## Model
+## How to run
 
-The plant is a lumped thermal model of the water mass:
-
-```
-C * dT/dt = Q - UA * (T - Tamb)
-```
-
-- C = 20000 J/K, UA = 100 W/K, Tamb = 20 degC
-- Heater limit: 0 to 24000 W
-
-The controller is a PI controller (Kp = 1000, Ki = 5) with back-calculation anti-windup (Kb = Ki/Kp = 0.005) and a 0.1 s sample time. Kp and Ki place the controller zero on the plant pole, which gives a first-order closed loop with a time constant of about 20 s when the heater is not saturated.
-
-## Files
-
-- `isitici.slx`: top-level model (plant, setpoint, logging)
-- `Controller.slx`: controller as a referenced model
-- `test_ch_basic.m`: automated MIL test for REQ-CH-001 to REQ-CH-004
-- `init_params.m`: model parameters
-- `test_ch_step.m`: automated MIL test for REQ-CH-005 (setpoint step 50 to 65 degC)
-- `requirements/REQUIREMENTS.md`: requirements and verification status
-
-## Run the tests
-
-In MATLAB, from the repository folder:
+Requirements: MATLAB and Simulink (developed in MATLAB Online). Stateflow and code generation products are not used yet.
 
 ```matlab
-init_params
-test_ch_basic
+init_params          % define all parameters in the base workspace
+test_ch_basic        % heating, steady setpoint
+test_ch_step         % heating, setpoint step
+test_ch_low          % heating, low load
+testdhw              % domestic hot water
 ```
 
-Run `test_ch_step` as well for REQ-CH-005. Expected output: four PASS lines from `test_ch_basic` and one from `test_ch_step`.
+Each test prints `PASS` or `FAIL` per requirement. The tests call `init_params` themselves and then override the scenario values, so they can be run in any order. After a test, run `init_params` again before simulating a model by hand.
 
+## Design overview
 
+### Heating circuit
 
-## Domestic hot water (DHW) controller
+- Plant: lumped thermal model, `C dT/dt = Q - UA (T - Tamb)`.
+- Controller: discrete PI (Kp = 1000, Ki = 5, Ts = 0.1 s) with external saturation `Qmin ... Qmax` and tracking anti-windup.
+- Low load: if the required power is below `Qmin` the burner is cycled by a hysteresis relay (off at setpoint + 3 K, on at setpoint - 3 K). The PI integrator is reset while the burner is off.
 
-Flow-through (instantaneous) combi model: plate heat exchanger, Hall flow sensor, no storage.
+### Domestic hot water
 
-- **Burner request:** flow switch with hysteresis (on at 2.5 L/min, off at 2.0 L/min).
-- **Control:** PI (Kp = 800, Ki = 110, Ts = 0.1 s) plus flow-proportional feed-forward, output limited to 0 ... 24 kW.
-- **Anti-windup:** tracking mode on the PI share (`Kt = 3`), so the limit on the sum (PI + FF) is seen by the integrator.
-- **Cold start:** plant starts at 20 °C, mains water at 15 °C.
-- **Minimum modulation:** burner power is 0 or between `Qmin` (4.8 kW, turndown 1:5) and `Qmax` (24 kW). Below `Qmin` the burner is cycled by a hysteresis relay (off at setpoint + 3 K, on at setpoint - 3 K); the PI integrator is reset while the burner is off or the tap is closed.
-- **Solver:** fixed-step (ode1, 0.01 s); the controller runs at Ts = 0.1 s.
+- Plant: flow-through heat exchanger, `Cdhw dT/dt = Q - m_dot cp (T - Tin)`, flow-dependent, cold start.
+- Burner request: relay with hysteresis on the flow (on at 2.5 L/min, off at 2.0 L/min).
+- Controller: PI (Kp = 800, Ki = 110) plus flow-proportional feed-forward, output limited to `Qmin ... Qmax`, tracking anti-windup (Kt = 3).
+- Low load: same hysteresis and PI reset as in the heating circuit.
+- Solver: fixed-step (ode1, 0.01 s); the controller runs at Ts = 0.1 s.
 
-Test: `testdhw.m` (REQ-DHW-001 ... 005). Cold start reaches 44.9 °C in 18.3 s (FF on) or 35.7 s (FF off); a flow step from 8 to 10 L/min causes ~2.15 K dip without FF and ~0 K with FF.
+### Minimum modulation
+
+Burner power is either 0 or between `Qmin = Qmax / turndown` and `Qmax` (default turndown 1:10, Qmax = 24 kW). `turndown` is a parameter in `init_params.m`.
+
+## Test results (current)
+
+| Area | Result |
+|---|---|
+| Heating, 20 -> 60 °C | reaches 59.9 °C in 123.1 s, overshoot 0.000 K, steady-state error 0.0000 K |
+| Heating, step 50 -> 65 °C | reaches 64.9 °C in 99.9 s after the step, overshoot 0.000 K, peak power 18 kW |
+| Heating, low load (1.5 kW) | temperature 57 ... 63 °C, about 16 burner starts per hour |
+| DHW, cold start, feed-forward off | 44.9 °C in 35.7 s, no overshoot, 2.15 K dip at the 8 -> 10 L/min flow step |
+| DHW, cold start, feed-forward on | 44.9 °C in 18.2 s, overshoot 0.08 K, no dip at the flow step |
+| DHW, low load (1.7 kW) | temperature 32 ... 38 °C (setpoint 35 °C), 3 burner starts in 120 s |
 
 ## Known limitations
 
-- The heat loss coefficient `UA` of the heating loop is constant. Robustness to ±30 % UA is not verified yet.
-- No flow sensor error or noise model yet (flow is assumed exact).
-- No transport delay (pipe between combi and tap) and no preheat (keep-warm) mode.
-- Plant parameters are lumped estimates, not measured on real hardware.
-- Minimum modulation is modelled with a simple hysteresis; no minimum on/off time (anti-cycling) yet. In the low-load test the burner starts 6 times in 120 s and the outlet temperature swings between 37 and 43 °C.
-- The PI is tuned for 8 L/min; at very low flow (about 2.5 L/min) the plant gain is higher and cold-start overshoot reaches about 3 K (gain scheduling is planned).
+- The heat loss coefficient `UA` is constant. Robustness against +/-30 % UA is not verified yet.
+- No flow sensor error or noise model; flow is assumed exact.
+- No transport delay (pipe between the boiler and the tap) and no preheat (keep-warm) mode.
+- Minimum modulation is modelled with a simple hysteresis; there is no minimum on/off time (anti-cycling) yet.
+- With turndown 1:5 the heating scenario (load 4 kW < Qmin 4.8 kW) cycles the burner; the default is 1:10.
+- The PI of the hot water controller is tuned for 8 L/min. At very low flow the plant gain is higher and the cold-start overshoot reaches about 3 K (gain scheduling is planned).
+- Plant parameters are lumped estimates and not measured on real hardware.
+
+## Planned
+
+Heating curve (outdoor temperature compensation), pump modes, burner sequence, protection and mode manager as state machines, fault codes, C++ implementation with unit tests and back-to-back comparison against the model, continuous integration.

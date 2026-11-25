@@ -2,13 +2,7 @@
 % MIL test: DHW controller, REQ-DHW-001 ... REQ-DHW-007 (cold start)
 
 % --- parameters ---
-Cdhw    = 4000;   Tin = 15;   Tstart = 20;   cpw = 4186;
-Tdhwset = 45;
-topen   = 5;      tflow = 60;
-flowon  = 2.5;    flowoff = 2.0;
-Kpdhw   = 800;    Kidhw = 110;   Ktdhw = 3;
-Qmaxdhw = 24000;  Qmindhw = 4800;
-Hoff    = 3;      Hon = 3;
+init_params;
 
 % --- requirement thresholds ---
 T_REACH_MAX = 40;     % s after tap opens   (REQ-DHW-002)
@@ -66,13 +60,13 @@ for ffon = [0 1]
     report('REQ-DHW-005', q_hi <= Qmaxdhw + 1e-6, ...
         sprintf('%s peak Q = %.0f W (max %d W)', tag, q_hi, Qmaxdhw));
     report('REQ-DHW-007', ~q_bad, ...
-        sprintf('%s burner power is 0 or >= %d W', tag, Qmindhw));
+        sprintf('%s burner power is 0 or >= %.0f W', tag, Qmindhw));
     fprintf('\n');
 end
 
 % ===== test 3: summer, low load (need < Qmin) =====
 ffon = 1;
-Tin = 25;  Tdhwset = 40;  flowinit = 2.5;  flowfinal = 2.5;
+Tin = 25;  Tdhwset = 35;  flowinit = 2.5;  flowfinal = 2.5;
 ffgain = ffon*cpw/60*(Tdhwset-Tin);
 out = sim('dhwplant');
 t = out.Tlog.Time;
@@ -82,12 +76,12 @@ w = t >= 40;
 band = max(abs(T(w) - Tdhwset));
 q_bad = any(Q > 1e-6 & Q < Qmindhw - 1e-6);
 starts = sum(diff(Q > 1e-6) == 1);
-fprintf('info  [summer] Tout range after 40 s = %.2f ... %.2f C, %d burner starts in %d s\n', ...
-    min(T(w)), max(T(w)), starts, round(t(end)));
+fprintf('info  [summer] need = %.0f W, Qmin = %.0f W, Tout range after 40 s = %.2f ... %.2f C, %d burner starts in %d s\n', ...
+    flowinit/60*cpw*(Tdhwset-Tin), Qmindhw, min(T(w)), max(T(w)), starts, round(t(end)));
 report('REQ-DHW-006', band <= BAND_MAX, ...
     sprintf('[summer] Tout stays within +/-%.1f K of setpoint: max deviation = %.2f K', BAND_MAX, band));
 report('REQ-DHW-007', ~q_bad, ...
-    sprintf('[summer] burner power is 0 or >= %d W', Qmindhw));
+    sprintf('[summer] burner power is 0 or >= %.0f W', Qmindhw));
 fprintf('\n');
 
 function report(id, ok, text)
