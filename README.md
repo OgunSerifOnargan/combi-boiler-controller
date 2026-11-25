@@ -12,7 +12,7 @@ This is a simulation project. It is not a certified safety product and the plant
 | Discrete-time controller, 0.1 s sample time | Done |
 | Plant and controller split, controller as referenced model | Done |
 | MIL tests for REQ-CH-001 to REQ-CH-004 | Passing |
-| Setpoint step test (REQ-CH-005) | Planned |
+| Setpoint step test (REQ-CH-005) | Passing |
 | Domestic hot water mode, pump logic, burner sequence (Stateflow), protection layer | Planned |
 | C++ implementation with back-to-back verification, CI | Planned |
 
@@ -35,6 +35,7 @@ The controller is a PI controller (Kp = 1000, Ki = 5) with back-calculation anti
 - `Controller.slx`: controller as a referenced model
 - `test_ch_basic.m`: automated MIL test for REQ-CH-001 to REQ-CH-004
 - `init_params.m`: model parameters
+- `test_ch_step.m`: automated MIL test for REQ-CH-005 (setpoint step 50 to 65 degC)
 - `requirements/REQUIREMENTS.md`: requirements and verification status
 
 ## Run the tests
@@ -46,4 +47,4 @@ init_params
 test_ch_basic
 ```
 
-Expected output: four PASS lines.
+Run `test_ch_step` as well for REQ-CH-005. Expected output: four PASS lines from `test_ch_basic` and one from `test_ch_step`.
