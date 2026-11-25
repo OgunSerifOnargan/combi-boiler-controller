@@ -4,6 +4,8 @@
 
 %% ===== common =====
 Qmax      = 24000;   % W, maximum burner power (24 kW)
+turndown  = 5;       % burner turndown ratio (1:5)
+Qmin      = Qmax/turndown;   % W, minimum burner power when burning (4.8 kW)
 
 %% ===== heating circuit (isitici.slx, Controller.slx) =====
 C          = 20000;  % J/K, thermal capacity of the heating water
@@ -42,3 +44,8 @@ Ktdhw     = 3;       % tracking gain
 ffon      = 1;       % 1 = feed-forward on, 0 = off
 ffgain    = ffon*cpw/60*(Tdhwset-Tin);   % W per (L/min)
 Qmaxdhw   = Qmax;    % W
+Qmindhw   = Qmin;    % W
+
+% burner shutoff hysteresis (low load)
+Hoff      = 3;       % K, burner off when Tout >= Tdhwset + Hoff
+Hon       = 3;       % K, burner on again when Tout <= Tdhwset - Hon

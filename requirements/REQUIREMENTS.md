@@ -21,3 +21,7 @@ Soğuk başlangıç (20 °C), kombi sıcak su ayar değeri 45 °C, şebeke suyu 
 | REQ-DHW-003 | Musluk açıldıktan sonra aşım 0,5 K'den az olmalıdır. | testdhw.m |
 | REQ-DHW-004 | Debi 8'den 10 L/dk'ya çıktığında sıcaklık düşüşü: FF kapalıyken en fazla 2,5 K, FF açıkken en fazla 0,5 K. | testdhw.m |
 | REQ-DHW-005 | Brülör gücü hiçbir zaman 24 kW'ı aşmamalıdır. | testdhw.m |
+
+| REQ-DHW-006 | Düşük yükte (ihtiyaç duyulan güç minimum brülör gücünün altındayken, örn. Tin = 25, Tset = 40, 2,5 L/dk) 40. saniyeden sonra çıkış sıcaklığı ayar değerinin ±3,5 K içinde kalmalıdır (brülör histerezisle kapanıp açılır: kapanma +3 K, açılma −3 K). | testdhw.m |
+| REQ-DHW-007 | Brülör gücü ya 0 W ya da en az Qmin (4,8 kW, turndown 1:5) olmalıdır; arası yasaktır. | testdhw.m |
+
