@@ -35,8 +35,13 @@ hcmode     = 1;      % 1 = fixed setpoint (step block)
 % 2 = heating curve (outdoor temperature)
 % 3 = room temperature control (curve + room PI)
 
+% outdoor temperature (Sine Wave block): Toutdoor + Toutamp*sin(...)
+Toutdoor   = 5;      % degC, daily mean outdoor temperature
+Toutamp    = 0;      % degC, daily swing amplitude (0 = constant)
+Toutw      = 2*pi/86400;       % rad/s, one period per day
+Toutphase  = -2*pi*9/24;       % rad, warmest at 15:00, coldest at 03:00
+
 % heating curve (mode 2 and feed-forward of mode 3)
-Toutdoor   = 5;      % degC, outdoor temperature
 hcx        = [-15 -5 5 15 20];   % degC, outdoor temperature breakpoints
 hcy        = [75 62 49 36 30];   % degC, flow temperature setpoints
 Tflowmin   = 30;     % degC, lower limit of the flow temperature setpoint
