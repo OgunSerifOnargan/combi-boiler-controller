@@ -8,13 +8,13 @@ turndown  = 10;      % burner turndown ratio (1:10)
 Qmin      = Qmax/turndown;   % W, minimum burner power when burning (2.4 kW)
 
 %% ===== heating circuit (isitici.slx, Controller.slx) =====
-% plant (Tamb = room temperature the radiators lose heat to)
+% plant (Tamb = room temperature the radiators lose heat to, modes 1 and 2)
 C          = 20000;  % J/K, thermal capacity of the heating water
-UA         = 100;    % W/K, heat loss coefficient
-Tamb       = 20;     % degC, room temperature
+UA         = 100;    % W/K, radiator heat emission coefficient
+Tamb       = 20;     % degC, fixed room temperature (modes 1 and 2)
 T_amb      = 20;     % degC, same value (heating plant block uses this name)
 
-% setpoint scenario (Step block in isitici.slx)
+% setpoint scenario (Step block in isitici.slx, mode 1)
 tset       = 60;     % degC, nominal setpoint
 tsetinit   = 60;     % degC, setpoint before the step
 tsetfinal  = 60;     % degC, setpoint after the step
@@ -30,13 +30,27 @@ Tsch       = 0.1;    % s, controller sample time
 Hoffch     = 3;      % K, burner off when T >= setpoint + Hoffch
 Honch      = 3;      % K, burner on again when T <= setpoint - Honch
 
-% heating curve (outdoor temperature compensation)
-hcon       = 0;      % 1 = setpoint from heating curve, 0 = fixed setpoint (step block)
+%% ===== setpoint mode =====
+hcmode     = 1;      % 1 = fixed setpoint (step block)
+% 2 = heating curve (outdoor temperature)
+% 3 = room temperature control (curve + room PI)
+
+% heating curve (mode 2 and feed-forward of mode 3)
 Toutdoor   = 5;      % degC, outdoor temperature
 hcx        = [-15 -5 5 15 20];   % degC, outdoor temperature breakpoints
 hcy        = [75 62 49 36 30];   % degC, flow temperature setpoints
 Tflowmin   = 30;     % degC, lower limit of the flow temperature setpoint
 Tflowmax   = 75;     % degC, upper limit of the flow temperature setpoint
+
+% room temperature control (mode 3)
+Troomset   = 21;     % degC, room temperature setpoint
+Troom0     = 20;     % degC, initial room temperature
+UAh        = 190;    % W/K, house heat loss to outside
+Croom      = 2e6;    % J/K, thermal capacity of the house (time constant ~2 h)
+Kpr        = 10;     % K/K, room PI proportional gain (flow K per room K)
+Kir        = 0.002;  % K/(K s), room PI integral gain
+Ktr        = 0.5;    % tracking (anti-windup) coefficient of the room PI
+Tsr        = 1;      % s, room PI sample time
 
 %% ===== domestic hot water (dhwplant.slx) =====
 % plant

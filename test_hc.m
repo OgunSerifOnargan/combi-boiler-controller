@@ -1,60 +1,55 @@
 % test_hc.m
-% MIL test: heating curve (outdoor temperature compensation), REQ-HC-001 ... REQ-HC-004
-
-% --- parameters (all from init_params.m) ---
+% MIL test of the heating curve (setpoint mode 2).
 init_params;
-hcon = 1;
+hcmode = 2;
+TOL    = 0.1;   % K
 
-% --- requirement thresholds ---
-TOL = 0.1;      % K, steady-state tolerance
+fprintf('--- test_hc ---\n');
 
-fprintf('\n');
+% REQ-HC-003: curve well-formed
+ok3 = all(diff(hcx) > 0) && all(diff(hcy) <= 0);
+report('REQ-HC-003', ok3, 'curve breakpoints and monotonicity');
 
-% ===== REQ-HC-003: curve data check (no simulation) =====
-mono = all(diff(hcx) > 0) && all(diff(hcy) <= 0);
-report('REQ-HC-003', mono, ...
-    'breakpoints strictly increasing, flow temperature non-increasing with outdoor temperature');
-
-% ===== REQ-HC-001: setpoint follows the curve (including an interpolated point) =====
-tout_list = [-15 -5 0 5];
-for k = 1:numel(tout_list)
-    Toutdoor = tout_list(k);
-    expected = interp1(hcx, hcy, Toutdoor);
-    out = sim('isitici', 'StopTime', '600');
-    T = out.Tlog.Data;
-    err = abs(T(end) - expected);
-    report('REQ-HC-001', err < TOL, ...
-        sprintf('outdoor %+.0f C: flow temperature = %.2f C (curve %.2f C, error %.3f K)', ...
-        Toutdoor, T(end), expected, err));
+% REQ-HC-001: steady flow temperature follows the curve
+pts = [-15 -5 0 5];
+ok1 = true;
+for k = 1:numel(pts)
+    Toutdoor = pts(k);
+    so  = sim('isitici','StopTime','600');
+    tl  = getlog(so,'Tlog');
+    Tend = tl.Data(end);
+    ref  = interp1(hcx,hcy,Toutdoor);
+    fprintf('  Toutdoor %6.1f -> T %.2f  (curve %.2f)\n',Toutdoor,Tend,ref);
+    ok1 = ok1 && abs(Tend-ref) <= TOL;
 end
+report('REQ-HC-001', ok1, 'flow temperature follows the curve');
 
-% ===== REQ-HC-002: outside the table the end value is held (clip) =====
+% REQ-HC-002: end value held outside the table
 Toutdoor = -25;
-expected = hcy(1);
-out = sim('isitici', 'StopTime', '600');
-T = out.Tlog.Data;
-err = abs(T(end) - expected);
-report('REQ-HC-002', err < TOL, ...
-    sprintf('outdoor %+.0f C (below table): flow temperature = %.2f C (end value %.2f C)', ...
-    Toutdoor, T(end), expected));
+so  = sim('isitici','StopTime','600');
+tl  = getlog(so,'Tlog');
+fprintf('  Toutdoor -25.0 -> T %.2f  (hcy(1) %.2f)\n',tl.Data(end),hcy(1));
+report('REQ-HC-002', abs(tl.Data(end)-hcy(1)) <= TOL, 'end value held, no extrapolation');
 
-% ===== REQ-HC-004: setpoint is limited to Tflowmin ... Tflowmax =====
-hcy_saved = hcy;
-hcy(1) = 90;                 % curve value above the limit
-Toutdoor = -15;
-out = sim('isitici', 'StopTime', '600');
-T = out.Tlog.Data;
-err = abs(T(end) - Tflowmax);
-report('REQ-HC-004', err < TOL, ...
-    sprintf('curve asks 90 C, limit %.0f C: flow temperature = %.2f C', Tflowmax, T(end)));
-hcy = hcy_saved;
-fprintf('\n');
+% REQ-HC-004: limited to Tflowmax
+hcy_backup = hcy;
+hcy(1)    = 90;
+Toutdoor  = -25;
+so  = sim('isitici','StopTime','600');
+tl  = getlog(so,'Tlog');
+fprintf('  curve 90 -> T %.2f  (Tflowmax %.2f)\n',tl.Data(end),Tflowmax);
+report('REQ-HC-004', abs(tl.Data(end)-Tflowmax) <= TOL, 'limited to Tflowmax');
+hcy = hcy_backup;
 
-function report(id, ok, text)
-if ok
-    s = 'PASS';
-else
-    s = 'FAIL';
+function report(id, ok, msg)
+if ok, s = 'PASS'; else, s = 'FAIL'; end
+fprintf('%s  %s  %s\n', s, id, msg);
 end
-fprintf('%s  %s  %s\n', s, id, text);
+
+function ts = getlog(so, name)
+try
+    ts = so.get(name);
+catch
+    ts = evalin('base', name);
+end
 end
