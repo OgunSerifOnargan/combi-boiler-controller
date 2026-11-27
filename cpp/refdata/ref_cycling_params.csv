@@ -1,0 +1,15 @@
+Tsch,0.1
+tprepurge,5
+tflame,1
+tignsafety,3
+nmax,3
+tpostpurge,10
+tminoff,60
+tminon,100
+Tstb,95
+Tlimit,90
+dTmax,30
+Tsmin,-20
+Tsmax,130
+Qmin,2400
+Qmax,24000
