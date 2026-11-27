@@ -7,6 +7,13 @@ Qmax      = 24000;   % W, maximum burner power (24 kW)
 turndown  = 10;      % burner turndown ratio (1:10)
 Qmin      = Qmax/turndown;   % W, minimum burner power when burning (2.4 kW)
 
+%% ===== burner: gas power and efficiency (Burner subsystem in isitici.slx) =====
+% datasheet Bosch Condens 7000i W 24 kW: gas input max 24.6 kW, efficiency 0.975 at 80/60, about 1.02 at 50/30 (Hi)
+etanom     = 0.975;  % -, efficiency the controller assumes (80/60 operating point), Qgas = Qreq/etanom
+Qgasmax    = 24600;  % W, maximum gas power (24.6 kW, datasheet)
+etax       = [30 55 80];        % degC, return temperature breakpoints
+etay       = [1.02 0.975 0.975];% -, efficiency: 0.975 above the dew point (about 55 degC), rises to 1.02 at 30 degC (condensing), assumption between the datasheet points
+
 %% ===== heating circuit (isitici.slx, Controller.slx) =====
 % plant v2: two-node model (boiler heat exchanger Tf, radiator circuit Tr)
 Chx        = 10000;  % J/K, thermal capacity of the boiler heat exchanger (water + metal), assumption
