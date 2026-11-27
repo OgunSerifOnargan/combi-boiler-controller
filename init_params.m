@@ -14,6 +14,26 @@ Qgasmax    = 24600;  % W, maximum gas power (24.6 kW, datasheet)
 etax       = [30 55 80];        % degC, return temperature breakpoints
 etay       = [1.02 0.975 0.975];% -, efficiency: 0.975 above the dew point (about 55 degC), rises to 1.02 at 30 degC (condensing), assumption between the datasheet points
 
+%% ===== burner sequence and protection (BurnerSequence chart in isitici.slx) =====
+% all times and limits are assumptions (typical orders of magnitude), not from the datasheet
+tprepurge    = 5;     % s, pre-purge: fan runs, gas closed
+tflame       = 1;     % s, time until the flame signal is proven after ignition
+tignsafety   = 3;     % s, ignition safety time: gas closes if no flame by then
+nmax         = 3;     % -, ignition attempts before lockout (fault 3)
+tpostpurge   = 10;    % s, post-purge: fan runs, gas closed
+tminoff      = 60;    % s, anti-cycling: minimum time between burner stop and next start
+tminon       = 30;    % s, minimum burn time after a start
+tpumpoverrun = 180;   % s, pump keeps running after the burner stopped
+Tstb         = 95;    % degC, over-temperature limit: lockout (fault 1)
+Tlimit       = 90;    % degC, soft limit: burner power is reduced above this flow temperature
+dTmax        = 30;    % K, maximum flow-return temperature difference, power is limited above it
+Tsmin        = -20;   % degC, sensor reading below this is treated as a sensor fault (fault 2)
+Tsmax        = 130;   % degC, sensor reading above this is treated as a sensor fault (fault 2)
+
+% inputs from the outside world, used for fault injection in tests (1e9 s = never happens)
+tflamefail   = 1e9;   % s, time the flame signal drops to 0 (0 = no flame from the start, ignition failure)
+trst         = 1e9;   % s, time the reset input goes to 1
+
 %% ===== heating circuit (isitici.slx, Controller.slx) =====
 % plant v2: two-node model (boiler heat exchanger Tf, radiator circuit Tr)
 Chx        = 10000;  % J/K, thermal capacity of the boiler heat exchanger (water + metal), assumption
@@ -50,8 +70,8 @@ Honch      = 3;      % K, burner on again when T <= setpoint - Honch
 
 %% ===== setpoint mode =====
 hcmode     = 1;      % 1 = fixed setpoint (step block)
-% 2 = heating curve (outdoor temperature)
-% 3 = room temperature control (curve + room PI)
+                     % 2 = heating curve (outdoor temperature)
+                     % 3 = room temperature control (curve + room PI)
 
 % outdoor temperature (Clock + Fcn): Toutdoor + Toutamp*sin(...)
 Toutdoor   = 5;      % degC, daily mean outdoor temperature
