@@ -4,20 +4,24 @@ A Simulink model of the control software of a combi boiler (heating circuit and 
 
 Everything is built by hand in Simulink and verified by automated model-in-the-loop (MIL) tests with traceable requirement IDs (see `requirements/REQUIREMENTS.md`).
 
+![Top level of isitici.slx](docs/toplevel.png)
+
 ## Repository content
 
 | File | Purpose |
 |---|---|
 | `init_params.m` | Single parameter file for all models and tests |
-| `isitici.slx` | Heating circuit: setpoint source (fixed or heating curve), controller reference model, thermal plant |
+| `isitici.slx` | Heating circuit: outdoor temperature, setpoint generator (3 modes), controller reference model, thermal plant, house model |
 | `Controller.slx` | Heating controller (model reference) |
 | `dhwplant.slx` | Domestic hot water: flow-through plant and controller |
 | `test_ch_basic.m` | MIL test, heating, REQ-CH-001 ... 004 |
 | `test_ch_step.m` | MIL test, heating setpoint step, REQ-CH-005 |
 | `test_ch_low.m` | MIL test, heating at low load, REQ-CH-006 ... 008 |
 | `test_hc.m` | MIL test, heating curve, REQ-HC-001 ... 004 |
+| `test_room.m` | MIL test, room temperature control over 24 h, REQ-RM-001 ... 003 |
 | `testdhw.m` | MIL test, domestic hot water, REQ-DHW-001 ... 007 |
 | `requirements/REQUIREMENTS.md` | Requirements with IDs |
+| `docs/` | Diagram images of the models |
 
 ## How to run
 
@@ -29,6 +33,7 @@ test_ch_basic        % heating, steady setpoint
 test_ch_step         % heating, setpoint step
 test_ch_low          % heating, low load
 test_hc              % heating curve
+test_room            % room temperature control, 24 h
 testdhw              % domestic hot water
 ```
 
@@ -36,19 +41,35 @@ Each test prints `PASS` or `FAIL` per requirement. The tests call `init_params` 
 
 ## Design overview
 
-### Heating circuit
+### Heating circuit (`isitici.slx`)
 
-- Plant: lumped thermal model, `C dT/dt = Q - UA (T - Troom)`.
+Signal flow, left to right: `Outdoor` and `Setpoint Generator` produce the flow temperature setpoint `tset`, a zero-order hold (Ts = 0.1 s) feeds the `Controller`, the controller commands the burner power `Qheat` to the `Plant`, and the `House Model` returns the room temperature `Troom` to the plant and to the setpoint generator.
+
+- Plant: lumped thermal model of the heating water, `C dT/dt = Q - UA (T - Troom)`.
+- House model: one dynamic room temperature for all modes, `Croom dTroom/dt = UA (T - Troom) - UAh (Troom - Toutdoor)`. The initial room temperature is `Tamb`. The default house (`Croom` = 2 MJ/K, `UAh` = 190 W/K) has a time constant of about 2 h.
+- Outdoor temperature: `Toutdoor + Toutamp * sin(2 pi (t - 9 h) / 24 h)`, so the daily maximum is at 15:00. `Toutamp = 0` gives a constant temperature.
 - Controller: discrete PI (Kp = 1000, Ki = 5, Ts = 0.1 s) with external saturation `Qmin ... Qmax` and tracking anti-windup.
 - Low load: if the required power is below `Qmin` the burner is cycled by a hysteresis relay (off at setpoint + 3 K, on at setpoint - 3 K). The PI integrator is reset while the burner is off.
 
-### Heating curve (outdoor temperature compensation)
+| Setpoint generator | Controller |
+|---|---|
+| ![Setpoint generator](docs/setpointgenerator.png) | ![Controller](docs/controller.png) |
 
-- The flow temperature setpoint is looked up from the outdoor temperature in a table (`hcx`, `hcy`, linear interpolation, end values held outside the table) and limited to `Tflowmin ... Tflowmax`.
-- A switch (`hcon`) selects between the heating curve and the fixed setpoint, so the original tests keep running unchanged.
-- The curve is a feed-forward element: the outdoor temperature announces the heat demand before the room cools down.
+| House model | Plant |
+|---|---|
+| ![House model](docs/housemodel.png) | ![Plant](docs/plant.png) |
 
-### Domestic hot water
+### Setpoint modes (`hcmode`)
+
+The flow temperature setpoint is selected by `hcmode` through a multiport switch:
+
+1. **Fixed setpoint**: a step block (`tsetinit`, `tsetfinal`, `tstep`). This is how the user-set flow temperature of a simple boiler works and keeps the original tests unchanged.
+2. **Heating curve**: the flow temperature is looked up from the outdoor temperature (`hcx`, `hcy`, linear interpolation, end values held outside the table) and limited to `Tflowmin ... Tflowmax`. The curve is a feed-forward element: the outdoor temperature announces the heat demand before the room cools down.
+3. **Room temperature control**: cascade. The curve is the feed-forward part and a slow room PI (`Kpr`, `Kir`, `Ktr`, Ts = 1 s) corrects it from the room temperature error: `Tcas = Sat(curve + PI(Troomset - Troom))`, with tracking anti-windup on the limit.
+
+In mode 2 the room drifts when the house is leakier than the curve assumes. In mode 3 the PI removes that error (see test results).
+
+### Domestic hot water (`dhwplant.slx`)
 
 - Plant: flow-through heat exchanger, `Cdhw dT/dt = Q - m_dot cp (T - Tin)`, flow-dependent, cold start.
 - Burner request: relay with hysteresis on the flow (on at 2.5 L/min, off at 2.0 L/min).
@@ -64,26 +85,33 @@ Burner power is either 0 or between `Qmin = Qmax / turndown` and `Qmax` (default
 
 | Area | Result |
 |---|---|
-| Heating, 20 -> 60 °C | reaches 59.9 °C in 123.1 s, overshoot 0.000 K, steady-state error 0.0000 K |
-| Heating, step 50 -> 65 °C | reaches 64.9 °C in 99.9 s after the step, overshoot 0.000 K, peak power 18 kW |
-| Heating, low load (1.5 kW) | temperature 57 ... 63 °C, about 16 burner starts per hour |
-| Heating curve | outdoor -15 / -5 / 0 / +5 °C give 75.00 / 62.00 / 55.50 / 49.00 °C (error 0.000 K); clip and limit verified |
+| Heating, 20 -> 60 °C | reaches 59.9 °C in 122.8 s, overshoot 0.010 K, steady-state error 0.010 K |
+| Heating, step 50 -> 65 °C | reaches 64.9 °C in 99.1 s after the step, overshoot 0.015 K, peak power 18.0 kW |
+| Heating, low load (setpoint 35 °C in a 20 °C room, about 1.5 kW needed) | temperature 32.0 ... 38.0 °C, 3.01 K from the setpoint at most, 16 burner starts per hour |
+| Heating curve | outdoor -15 / -5 / 0 / +5 °C give 74.99 / 61.99 / 55.50 / 49.00 °C (curve 75.00 / 62.00 / 55.50 / 49.00); -25 °C gives 74.97 °C, limit at 75 °C verified |
+| Room control, 24 h, outdoor 5 °C +/- 4 °C, setpoint 21 °C | room 20.83 ... 21.18 °C (max error 0.18 K), 8 burner starts in 24 h |
+| Room control, house loss +30 % | max room error 0.58 K |
+| Room, curve only (mode 2, for comparison) | max room error 1.50 K (nominal house), 4.40 K (house loss +30 %) |
 | DHW, cold start, feed-forward off | 44.9 °C in 35.7 s, no overshoot, 2.15 K dip at the 8 -> 10 L/min flow step |
 | DHW, cold start, feed-forward on | 44.9 °C in 18.2 s, overshoot 0.08 K, no dip at the flow step |
 | DHW, low load (1.7 kW) | temperature 32 ... 38 °C (setpoint 35 °C), 3 burner starts in 120 s |
 
+The DHW values are from the last run of `testdhw.m` before the house model was added; the DHW model does not use it.
+
 ## Known limitations
 
-- The heat loss coefficient `UA` is constant. Robustness against +/-30 % UA is not verified yet.
-- No flow sensor error or noise model; flow is assumed exact.
+- The heat loss coefficients `UA` and `UAh` are constant. Robustness against +/-30 % `UA` of the radiator is not verified yet (only +30 % `UAh` is, in `test_room.m`).
+- No flow sensor error or noise model; flow and room temperature are assumed exact.
 - No transport delay (pipe between the boiler and the tap) and no preheat (keep-warm) mode.
 - Minimum modulation is modelled with a simple hysteresis; there is no minimum on/off time (anti-cycling) yet.
-- Stuck zone at low load: when the required heating power is slightly below `Qmin` and the setpoint is about 41 ... 44 °C, the burner stays on at `Qmin` and never reaches the shutoff threshold; the temperature settles up to 3 K above the setpoint. Planned fix: burner request state machine with minimum on/off time and an excess-temperature integral criterion.
+- Stuck zone at low load: when the required heating power is slightly below `Qmin` and the setpoint is about 41 ... 44 °C, the burner stays on at `Qmin` and never reaches the shutoff threshold; the temperature settles up to 3 K above the setpoint. This matters because real flow temperatures are typically 36 ... 45 °C. Planned fix: burner request state machine with minimum on/off time and an excess-temperature integral criterion.
+- On mild midday hours the burner cycles in the room control test (8 starts per day); the same state machine is meant to reduce this.
 - With turndown 1:5 the heating scenario (load 4 kW < Qmin 4.8 kW) cycles the burner; the default is 1:10.
 - The PI of the hot water controller is tuned for 8 L/min. At very low flow the plant gain is higher and the cold-start overshoot reaches about 3 K (gain scheduling is planned).
-- Setpoint sources: only the fixed flow temperature and the heating curve are implemented. Room temperature control (cascade) and a user shift / room influence on the curve are not.
-- Plant parameters are lumped estimates and not measured on real hardware.
+- The outdoor temperature is a single sine per day; no weather data. The room model has one lumped capacity and no solar or internal gains.
+- Room control is a feed-forward plus PI cascade without user shift or room influence weighting; the user-visible shift of a real heating curve is not implemented.
+- Plant and house parameters are lumped estimates and not measured on real hardware.
 
 ## Planned
 
-Room temperature control (cascade) as third setpoint mode, user shift and room influence on the heating curve, burner request and burner sequence state machines (Stateflow), protection and mode manager, pump modes, fault codes, C++ implementation with unit tests and back-to-back comparison against the model, continuous integration.
+Burner request and burner sequence state machines (Stateflow), user shift on the heating curve, protection and mode manager, pump modes, fault codes, C++ implementation with unit tests and back-to-back comparison against the model, static analysis and continuous integration.

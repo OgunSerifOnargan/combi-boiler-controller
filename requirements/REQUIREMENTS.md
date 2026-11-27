@@ -6,7 +6,7 @@ Common assumptions: maximum burner power Qmax = 24 kW, turndown 1:10 (minimum bu
 
 ## Heating circuit (CH)
 
-Lumped model: heating water thermal capacity C = 20 kJ/K, heat loss coefficient UA = 100 W/K, room temperature 20 °C.
+Lumped model: heating water thermal capacity C = 20 kJ/K, radiator heat emission coefficient UA = 100 W/K. The room is a dynamic house model (Croom = 2 MJ/K, UAh = 190 W/K, outdoor temperature 5 °C) with an initial room temperature of 20 °C; it moves only slowly during the short tests.
 
 | ID | Requirement | Test |
 |---|---|---|
@@ -15,13 +15,13 @@ Lumped model: heating water thermal capacity C = 20 kJ/K, heat loss coefficient 
 | REQ-CH-003 | Steady-state error is less than 0.1 K. | test_ch_basic.m |
 | REQ-CH-004 | Heater power stays within 0 ... 24 kW. | test_ch_basic.m |
 | REQ-CH-005 | After a setpoint step from 50 °C to 65 °C the flow temperature reaches 64.9 °C within 120 s, overshoot less than 0.5 K, heater power at most 24 kW. | test_ch_step.m |
-| REQ-CH-006 | At low load (load below Qmin, e.g. room 45 °C) the temperature stays within +/-3.5 K of the setpoint after 600 s. The burner is switched off at setpoint + 3 K and on again at setpoint - 3 K. | test_ch_low.m |
+| REQ-CH-006 | At low load (required power below Qmin: flow temperature setpoint 35 °C in a room of 20 °C, about 1.5 kW needed) the temperature stays within +/-3.5 K of the setpoint after 600 s. The burner is switched off at setpoint + 3 K and on again at setpoint - 3 K. | test_ch_low.m |
 | REQ-CH-007 | Burner power is either 0 W or at least Qmin. | test_ch_low.m |
 | REQ-CH-008 | At low load the burner starts at most 25 times per hour. | test_ch_low.m |
 
-## Heating curve (HC)
+## Setpoint modes and heating curve (HC)
 
-Outdoor temperature compensation: the flow temperature setpoint is looked up from the outdoor temperature (table with linear interpolation, end values held outside the table) and limited to Tflowmin ... Tflowmax. A switch selects between the curve and the fixed setpoint.
+The flow temperature setpoint is selected by the parameter `hcmode`: 1 = fixed setpoint, 2 = heating curve, 3 = room temperature control (see RM). The curve looks up the flow temperature from the outdoor temperature (table with linear interpolation, end values held outside the table) and limits it to Tflowmin ... Tflowmax. The HC tests run with `hcmode = 2`.
 
 | ID | Requirement | Test |
 |---|---|---|
@@ -29,6 +29,16 @@ Outdoor temperature compensation: the flow temperature setpoint is looked up fro
 | REQ-HC-002 | Outside the table range the end value is held (no extrapolation): outdoor -25 °C gives the value at the lowest breakpoint. | test_hc.m |
 | REQ-HC-003 | The curve is well-formed: breakpoints strictly increasing, flow temperature non-increasing with rising outdoor temperature. | test_hc.m |
 | REQ-HC-004 | The flow temperature setpoint is limited to Tflowmin ... Tflowmax regardless of the curve values. | test_hc.m |
+
+## Room temperature control (RM)
+
+Mode 3 (`hcmode = 3`): cascade of the heating curve (feed-forward) and a room PI. Scenario: room setpoint 21 °C, initial room temperature 21 °C, outdoor temperature 5 °C with a daily swing of +/-4 °C (maximum at 15:00), simulated time 24 h, evaluation after the first 2 h.
+
+| ID | Requirement | Test |
+|---|---|---|
+| REQ-RM-001 | With the nominal house (UAh = 190 W/K) the room temperature stays within 0.3 K of the room setpoint over the 24 h scenario. | test_room.m |
+| REQ-RM-002 | With a house that loses 30 % more heat (UAh x 1.3) the room temperature stays within 0.8 K of the room setpoint. | test_room.m |
+| REQ-RM-003 | In the nominal 24 h scenario the burner starts at most 20 times. | test_room.m |
 
 ## Domestic hot water (DHW)
 
