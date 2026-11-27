@@ -17,7 +17,7 @@ Settling is judged with a band (the flow temperature stays inside +/-1 K of the 
 | REQ-CH-003 | Steady-state error is less than 0.1 K. | test_ch_basic.m |
 | REQ-CH-004 | Heater power stays within 0 ... 24 kW. | test_ch_basic.m |
 | REQ-CH-005 | After a setpoint step from 50 °C to 65 °C the flow temperature stays inside +/-1 K of 65 °C from at most 200 s after the step on, overshoot less than 0.5 K, heater power at most 24 kW. | test_ch_step.m |
-| REQ-CH-006 | At low load (required power below Qmin: flow temperature setpoint 35 °C in a room of 20 °C, about 1.5 kW needed) the temperature stays within +/-3.5 K of the setpoint after 600 s. The request is switched off at setpoint + 3 K and on again at setpoint - 3 K. | test_ch_low.m |
+| REQ-CH-006 | At low load (required power below Qmin: flow temperature setpoint 35 °C in a room of 20 °C, about 1.1 kW needed) the temperature stays within +/-3.5 K of the setpoint after 600 s. The request is switched off at setpoint + 3 K and on again at setpoint - 3 K. | test_ch_low.m |
 | REQ-CH-007 | Burner power is either 0 W or at least Qmin. | test_ch_low.m |
 | REQ-CH-008 | At low load the burner starts at most 25 times per hour. | test_ch_low.m |
 

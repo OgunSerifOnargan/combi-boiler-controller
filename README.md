@@ -60,7 +60,7 @@ The plant has two thermal nodes: the heat exchanger water (`Chx` = 10 kJ/K) and 
 
 ### Temperature sensor
 
-First order lag (NTC, `tauntc` = 5 s) and quantisation (`qntc` = 0.1 K). Controller and burner protection both use the sensor reading, not the true temperature. Consequence: the 5 s lag is visible in the protection timing (see REQ-BS-006).
+First order lag (NTC, `tauntc` = 5 s, implemented as a State-Space block so that the initial state is the start temperature `Tamb`) and quantisation (`qntc` = 0.1 K). Controller and burner protection both use the sensor reading, not the true temperature. Consequence: the 5 s lag is visible in the protection timing (see REQ-BS-006).
 
 ### Controller
 
@@ -118,9 +118,9 @@ Burner power is either 0 or between `Qmin = Qmax / turndown` and `Qmax` (default
 
 | Area | Result |
 |---|---|
-| Heating, 20 -> 60 °C | inside the +/-1 K band from 388.3 s on (limit 400 s), overshoot -0.04 K (none), steady-state error 0.048 K, power 3.7 ... 24 kW |
-| Heating, step 50 -> 65 °C | inside the +/-1 K band 156.7 s after the step (limit 200 s), overshoot 0.09 K, peak power 24 kW |
-| Heating, low load (setpoint 35 °C, 1.5 kW needed) | temperature 31.94 ... 38.00 °C, 3.06 K from the setpoint at most, 5 burner starts in the evaluated hour |
+| Heating, 20 -> 60 °C | inside the +/-1 K band from 365.5 s on (limit 400 s), overshoot -0.04 K (none), steady-state error 0.055 K, power 3.7 ... 24 kW |
+| Heating, step 50 -> 65 °C | inside the +/-1 K band 147.3 s after the step (limit 200 s), overshoot 0.16 K, peak power 24 kW |
+| Heating, low load (setpoint 35 °C, about 1.1 kW needed) | temperature 31.94 ... 38.00 °C, 3.06 K from the setpoint at most, 5 burner starts in the evaluated hour |
 | Heating curve | outdoor -15 / -5 / 0 / +5 °C give 74.95 / 61.95 / 55.45 / 49.05 °C (curve 75.00 / 62.00 / 55.50 / 49.00); -25 °C gives 74.95 °C, limit at 75 °C verified |
 | Room control, 24 h, outdoor 5 °C +/- 4 °C, setpoint 21 °C | room 20.84 ... 21.16 °C (max error 0.16 K), 4 burner starts in 24 h |
 | Room control, house loss +30 % | max room error 0.45 K |
@@ -128,28 +128,26 @@ Burner power is either 0 or between `Qmin = Qmax / turndown` and `Qmax` (default
 | DHW, cold start, feed-forward off | 44.9 °C in 35.7 s, no overshoot, 2.15 K dip at the 8 -> 10 L/min flow step |
 | DHW, cold start, feed-forward on | 44.9 °C in 18.2 s, overshoot 0.08 K, no dip at the flow step |
 | DHW, low load (1.7 kW) | temperature 32 ... 38 °C (setpoint 35 °C), 3 burner starts in 120 s |
-| Burner interface | in Run `Qgas = Qreq/etanom` with 0.000 W deviation (19968 samples), no gas outside Run, peak 24.6 kW |
+| Burner interface | in Run `Qgas = Qreq/etanom` with 0.000 W deviation (19965 samples), no gas outside Run, peak 24.6 kW |
 | Start sequence | pre-purge 5.0 s, flame proving 1.0 s |
 | Ignition failure | 3 attempts, then lockout, fault 3, no gas |
 | Flame loss at 300 s | lockout in the same sample, fault 4, no gas |
 | Anti-cycling (narrow hysteresis forces fast cycling) | gas closed at least 75.1 s between burns (limit 60 s), 5 cycles |
 | Minimum burn time (`tminon` set to 100 s for the test) | shortest burn 100.0 s over 5 burns |
 | Over-temperature (`Tstb` set to 50 °C) | lockout at 58.0 s, fault 1, no gas |
-| Sensor range (`Tsmax` set to 40 °C) | lockout at 28.0 s, fault 2, no gas |
+| Sensor range (`Tsmax` set to 40 °C) | lockout at 27.8 s, fault 2, no gas |
 | Reset | lockout left in the same sample as the reset (330 s) |
 
 ## Known limitations
 
-- **Settling margin of REQ-CH-001:** the flow temperature is inside the +/-1 K band after 388.3 s against a limit of 400 s, so the margin is only about 12 s. The time includes the 6 s start sequence and a slow tail of the PI controller. The original "first time at 59.9 °C" criterion is not used: it was 1085.5 s, because the sensor lag and quantisation make the reading touch 59.9 °C late. It is printed as information only.
-- **Steady-state error and quantisation:** REQ-CH-003 passes with 0.048 K against 0.1 K; the sensor resolution is 0.1 K, so the limit cannot be tightened much.
+- **Settling margin of REQ-CH-001:** the flow temperature is inside the +/-1 K band after 365.5 s against a limit of 400 s (margin about 35 s). The time includes the 6 s start sequence and a slow tail of the PI controller. The original "first time at 59.9 °C" criterion is not used: it was 929.7 s, because the sensor lag and quantisation make the reading touch 59.9 °C late. It is printed as information only.
+- **Steady-state error and quantisation:** REQ-CH-003 passes with 0.055 K against 0.1 K; the sensor resolution is 0.1 K, so the limit cannot be tightened much.
 - **Start sequence delay:** a request is executed after about 6 s (pre-purge and flame proving). The PI keeps integrating during the start sequence and the Wait state (no windup handling for the sequence yet).
 - **Protection uses the sensor reading:** the over-temperature limit sees the temperature with the 5 s lag of the sensor (lockout at 58.0 s although the true temperature crossed 50 °C at about 52.7 s). A real safety limiter would use an independent sensor.
 - **The reset is a level, not a pulse:** in the test the `rst` signal stays 1 after 330 s, so a new lockout would be reset immediately. A real reset must be edge-triggered with a limited number of resets.
 - **Flame signal and reset are test inputs:** there is no flame sensor model. Faults are injected by Step blocks.
 - **Not implemented:** pump overrun (`tpumpoverrun` exists in `init_params.m` but is not used), frost protection, user shift on the heating curve, mode manager, rate limiter on the power request.
 - **Stateflow trial:** the chart was built with a trial licence; the picture in `docs/burner_sequence.png` is the design diagram of the chart.
-- `test_ch_low.m` computes the needed power (1.5 kW) from the old one-node radiator coefficient; it should be updated to the two-node plant. The result (31.94 ... 38.00 °C) is not affected, only the printed "need" value.
-- The sensor lag block starts at 0 °C, so the first seconds of the reading are wrong (small effect, not yet corrected).
 - Robustness against +/-30 % radiator parameters is not verified yet (only +30 % `UAh` of the house is, in `test_room.m`).
 - DHW: no flow sensor error or noise model, no transport delay, no preheat mode. The PI is tuned for 8 L/min; at very low flow the cold-start overshoot reaches about 3 K (gain scheduling is planned).
 - The outdoor temperature is a single sine per day; the room model has one lumped capacity and no solar or internal gains.

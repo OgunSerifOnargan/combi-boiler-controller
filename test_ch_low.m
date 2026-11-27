@@ -1,7 +1,7 @@
 % test_ch_low.m
 % MIL test of the heating circuit at low load.
 % Low flow temperature setpoint (35 degC) in a 20 degC room: the required
-% power (about 1.5 kW) is below the minimum burner power Qmin (2.4 kW).
+% power (about 1.1 kW) is below the minimum burner power Qmin (2.4 kW).
 init_params;
 tset      = 35;       % degC, low flow temperature setpoint
 tsetinit  = 35;
@@ -17,10 +17,18 @@ ql = getlog(so,'Qlog');
 T  = tl.Data(:);  tt = tl.Time(:);
 Q  = ql.Data(:);
 
-need = UA*(tset - Tamb);
+% Estimated steady-state heat demand at this setpoint (two-node radiator model):
+% Q = Krad*(Tmean - Tamb)^nrad, with Tmean = flow temperature - Q/(2*mdot*cp)
+% (mean of flow and return). Solved by fixed-point iteration. cp of water 4186 J/(kg K).
+cpw  = 4186;
+need = Krad*(tset - Tamb)^nrad;
+for it = 1:20
+    Tmean = tset - need/(2*mdot*cpw);
+    need  = Krad*(Tmean - Tamb)^nrad;
+end
 late = tt >= T_SKIP;
 dev  = max(abs(T(late) - tset));
-fprintf('info need = %.0f W, Qmin = %.0f W, Tout range after %d s = %.2f ... %.2f C\n', ...
+fprintf('info need (estimate) = %.0f W, Qmin = %.0f W, Tout range after %d s = %.2f ... %.2f C\n', ...
     need, Qmin, T_SKIP, min(T(late)), max(T(late)));
 report('REQ-CH-006', dev <= TMAX_DEV, ...
     sprintf('temperature within +/-%.1f K of setpoint after %d s: max deviation = %.2f K', TMAX_DEV, T_SKIP, dev));
